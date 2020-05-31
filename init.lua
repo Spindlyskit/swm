@@ -20,6 +20,7 @@ function exitHyperMode()
 end
 
 hyperListener = hs.hotkey.bind({}, 'F18', enterHyperMode, exitHyperMode)
+hyperListener = hs.hotkey.bind({ 'shift' }, 'F18', enterHyperMode, exitHyperMode)
 
 -- Helper function
 function toggleApp(id)
@@ -39,7 +40,7 @@ end
 -- Hyper application bindings
 hyperAppBindings = {
     'return', 'com.googlecode.iterm2',
-    'e', 'com.apple.finder',
+    'f', 'com.apple.finder',
     's', 'com.apple.safari',
 }
 
@@ -56,11 +57,21 @@ hyper:bind({}, 'x', function()
     hyper.triggered = true
 end)
 
+hyper:bind({ 'shift' }, 'x', function()
+    hs.caffeinate.logOut()
+    hyper.triggered = true
+end)
+
 -- Window management
 require('wm')
-hs.window.animationDuration = 0.1
+hs.window.animationDuration = 0
 
 hyper:bind({}, 'space', function()
     wm:maximize()
+    hyper.triggered = true
+end)
+
+hyper:bind({}, 'r', function()
+    wm:restore()
     hyper.triggered = true
 end)
