@@ -1,0 +1,66 @@
+-- Additional logging
+require('hs.crash')
+hs.crash.crashLogToNSLog = false
+
+-- Hyper mode status
+-- (Capslock is bound to f18 by Karabiner)
+hyper = hs.hotkey.modal.new({}, 'F17')
+
+function enterHyperMode()
+    hyper.triggered = false
+    hyper:enter()
+end
+
+function exitHyperMode()
+    hyper:exit()
+    -- Hyper works as an escape if not used as a modifier
+    if not hyper.triggered then
+        hs.eventtap.keyStroke({}, "ESCAPE")
+    end
+end
+
+hyperListener = hs.hotkey.bind({}, 'F18', enterHyperMode, exitHyperMode)
+
+-- Helper function
+function toggleApp(id)
+    local currentBundle = hs.application.frontmostApplication():bundleID()
+    if currentBundle == id then
+        hs.eventtap.keyStroke({ 'cmd' }, 'h')
+        return
+    end
+
+    hs.application.launchOrFocusByBundleID(id)
+    if id == 'com.apple.finder' then
+        hs.appfinder.appFromName('Finder'):activate()
+    end
+end
+
+
+-- Hyper application bindings
+hyperAppBindings = {
+    'return', 'com.googlecode.iterm2',
+    'e', 'com.apple.finder',
+    's', 'com.apple.safari',
+}
+
+for i = 1, #hyperAppBindings, 2 do
+    hyper:bind({}, hyperAppBindings[i], function()
+        toggleApp(hyperAppBindings[i + 1])
+        hyper.triggered = true
+    end)
+end
+
+-- Basic hyper bindings
+hyper:bind({}, 'x', function()
+    hs.caffeinate.lockScreen()
+    hyper.triggered = true
+end)
+
+-- Window management
+require('wm')
+hs.window.animationDuration = 0.1
+
+hyper:bind({}, 'space', function()
+    wm:maximize()
+    hyper.triggered = true
+end)
