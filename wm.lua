@@ -49,10 +49,16 @@ local function addWindowState(win, id)
 end
 
 -- Update the direction and directionCounter
-local function updateDirection(windowState, direction, mod)
+local function updateDirection(win, id, direction, mod)
+    local windowState = wm.windows[id]
+
     if windowState.direction == direction then
         windowState.directionCounter = (windowState.directionCounter + 1) % mod
     else
+        if windowState.direction == directions.NONE then
+            windowState.restore = win:frame()
+        end
+
         windowState.direction = direction
         windowState.directionCounter = 0
     end
@@ -69,7 +75,6 @@ function wm:updateWin(win, update)
     update(max)
 
     win:setFrame(max)
-    return true
 end
 
 -- Maximize a window (cycle through maxmizedSizes)
@@ -87,7 +92,7 @@ function wm:maximize()
         windowState = addWindowState(win, id)
     end
     
-    updateDirection(windowState, directions.UP, #self.maximizedSizes)
+    updateDirection(win, id, directions.UP, #self.maximizedSizes)
 
     newSize = self.maximizedSizes[windowState.directionCounter + 1]
 
@@ -121,7 +126,7 @@ function wm:restore()
         return false
     end
 
-    updateDirection(windowState, directions.NONE, 1)
+    updateDirection(win, id, directions.NONE, 1)
 
     self:updateWin(win, function(f)
         f.x = windowState.restore.x
