@@ -8,6 +8,8 @@ local directions = {
     LEFT = 3,
     RIGHT = 4,
     MAX = 5,
+    -- Moved by the wm but not resized
+    MOVED = 6,
 }
 
 wm = {}
@@ -70,7 +72,6 @@ end
 
 -- Get the new size multiplier of a window
 local function getNewSize(win, direction, sizes)
-
     if shouldIgnoreWin(win) then
         return nil
     end
@@ -174,6 +175,33 @@ function wm:right()
     self:updateWin(win, function(f)
         f.x = f.x + f.w * (1 - newSize)
         f.w = f.w * newSize
+    end)
+end
+
+-- Put a window in the center of the screen
+function wm:center()
+    local win = hs.window.focusedWindow()
+
+    if shouldIgnoreWin(win) then
+        return nil
+    end
+
+    local id = win:id()
+    local windowState = wm.windows[id]
+
+    if not windowState then
+        windowState = addWindowState(win, id)
+    end
+
+    updateDirection(win, id, directions.MOVED, 1)
+
+    local wf = win:frame()
+
+    wm:updateWin(win, function(f)
+        f.x = f.x + f.w / 2 - wf.w / 2
+        f.y = f.y + f.h / 2 - wf.h / 2
+        f.w = wf.w
+        f.h = wf.h
     end)
 end
 
