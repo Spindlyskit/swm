@@ -71,7 +71,16 @@ hyper:bind({}, 'space', function()
     hyper.triggered = true
 end)
 
-hyper:bind({}, 'r', function()
-    wm:restore()
-    hyper.triggered = true
-end)
+function simpleWMBind(key, op)
+    hyper:bind({}, key, function()
+        wm[op or key](wm)
+        hyper.triggered = true
+    end)
+end
+
+simpleWMBind('space', 'maximize')
+simpleWMBind('up')
+simpleWMBind('down')
+simpleWMBind('left')
+simpleWMBind('right')
+simpleWMBind('r', 'restore')

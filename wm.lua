@@ -68,7 +68,26 @@ local function shouldIgnoreWin(win)
     return not win or not win:isStandard()
 end
 
--- Update a window's position while handling restoring
+-- Get the new size multiplier of a window
+local function getNewSize(win, direction, sizes)
+
+    if shouldIgnoreWin(win) then
+        return nil
+    end
+
+    local id = win:id()
+    local windowState = wm.windows[id]
+
+    if not windowState then
+        windowState = addWindowState(win, id)
+    end
+
+    updateDirection(win, id, direction, #sizes)
+
+    return sizes[windowState.directionCounter + 1]
+end
+
+-- Update a window's frame
 function wm:updateWin(win, update)
     local max = win:screen():frame()
 
@@ -77,26 +96,15 @@ function wm:updateWin(win, update)
     win:setFrame(max)
 end
 
--- Maximize a window (cycle through maxmizedSizes)
+-- Maximize a window (cycle through maximizedSizes)
 function wm:maximize()
     local win = hs.window.focusedWindow()
+    local newSize = getNewSize(win, directions.MAX, self.maximizedSizes)
 
-    if shouldIgnoreWin(win) then
+    if not newSize then
         return false
     end
 
-    local id = win:id()
-    local windowState = self.windows[id]
-
-    if not windowState then
-        windowState = addWindowState(win, id)
-    end
-    
-    updateDirection(win, id, directions.UP, #self.maximizedSizes)
-
-    newSize = self.maximizedSizes[windowState.directionCounter + 1]
-
-    -- Don't waste time dividing by one
     if newSize == 1 then
         self:updateWin(win, function() end)
         return
@@ -108,6 +116,64 @@ function wm:maximize()
         f.y = f.y + f.h * gapUnit
         f.w = f.w * newSize
         f.h = f.h * newSize
+    end)
+end
+
+-- Snap a window to the top of the screen
+function wm:up()
+    local win = hs.window.focusedWindow()
+    local newSize = getNewSize(win, directions.UP, self.sizes)
+
+    if not newSize then
+        return false
+    end
+
+    self:updateWin(win, function(f)
+        f.h = newSize * f.h
+    end)
+end
+
+-- Snap a window to the bottom of the screen
+function wm:down()
+    local win = hs.window.focusedWindow()
+    local newSize = getNewSize(win, directions.DOWN, self.sizes)
+
+    if not newSize then
+        return false
+    end
+
+    self:updateWin(win, function(f)
+        f.y = f.y + f.h * (1 - newSize)
+        f.h = newSize * f.h
+    end)
+end
+
+-- Snap a window to the left of the screen
+function wm:left()
+    local win = hs.window.focusedWindow()
+    local newSize = getNewSize(win, directions.LEFT, self.sizes)
+
+    if not newSize then
+        return false
+    end
+
+    self:updateWin(win, function(f)
+        f.w = f.w * newSize
+    end)
+end
+
+-- Snap a window to the right of the screen
+function wm:right()
+    local win = hs.window.focusedWindow()
+    local newSize = getNewSize(win, directions.RIGHT, self.sizes)
+
+    if not newSize then
+        return false
+    end
+
+    self:updateWin(win, function(f)
+        f.x = f.x + f.w * (1 - newSize)
+        f.w = f.w * newSize
     end)
 end
 
