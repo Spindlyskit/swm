@@ -1,3 +1,6 @@
+-- Copyright (c) 2020 Spindlyskit. All rights reserved.
+-- This work is licensed under the terms of the MIT license. See LICENCE for details
+
 -- Additional logging
 require('hs.crash')
 hs.crash.crashLogToNSLog = false

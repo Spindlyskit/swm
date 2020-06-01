@@ -1,3 +1,6 @@
+-- Copyright (c) 2020 Spindlyskit. All rights reserved.
+-- This work is licensed under the terms of the MIT license. See LICENCE for details
+
 -- Maximum time between keypresses in a chord
 local maxChordTime = 0.3
 local events = hs.uielement.watcher
