@@ -5,6 +5,8 @@
 require('hs.crash')
 hs.crash.crashLogToNSLog = false
 
+require('wm')
+
 -- Hyper mode status
 -- (Capslock is bound to f18 by Karabiner)
 hyper = hs.hotkey.modal.new({}, 'F17')
@@ -20,6 +22,7 @@ function exitHyperMode()
     if not hyper.triggered then
         hs.eventtap.keyStroke({}, "ESCAPE")
     end
+    wm.chord = false
 end
 
 hyperListener = hs.hotkey.bind({}, 'F18', enterHyperMode, exitHyperMode)
@@ -66,7 +69,6 @@ hyper:bind({ 'shift' }, 'x', function()
 end)
 
 -- Window management
-require('wm')
 hs.window.animationDuration = 0
 
 hyper:bind({}, 'space', function()

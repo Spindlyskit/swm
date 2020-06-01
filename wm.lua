@@ -1,8 +1,6 @@
 -- Copyright (c) 2020 Spindlyskit. All rights reserved.
 -- This work is licensed under the terms of the MIT license. See LICENCE for details
 
--- Maximum time between keypresses in a chord
-local maxChordTime = 0.3
 local events = hs.uielement.watcher
 local directions = {
     NONE = 0,
@@ -11,15 +9,21 @@ local directions = {
     LEFT = 3,
     RIGHT = 4,
     MAX = 5,
-    -- Moved by the wm but not resized
-    MOVED = 6,
+    -- Managed by the wm but not part of a chord
+    MANAGED = 6,
+}
+local invalidComplements = {
+    [directions.UP] = directions.DOWN,
+    [directions.DOWN] = directions.UP,
+    [directions.LEFT] = directions.RIGHT,
+    [directions.RIGHT] = directions.LEFT,
 }
 
 wm = {}
 -- Store state of open windows
 wm.windows = {}
--- Last window manager keybind time
-wm.lastPressTime = 0
+-- Whether a chord is currently active
+wm.chord = false
 -- Sizes windows can take
 wm.sizes = { 1/2, 1/3, 2/3 }
 wm.maximizedSizes = { 1, 3/4 }
@@ -41,6 +45,9 @@ local function addWindowState(win, id)
     windowState.direction = directions.NONE
     -- Number of times that direction has been pushed
     windowState.directionCounter = 0
+    -- Second direction used for corner snaps
+    windowState.complement = directions.NONE
+    windowState.complementCounter = 0
     -- The window state before it became managed
     windowState.restore = win:frame()
     wm.windows[id] = windowState
@@ -53,42 +60,31 @@ local function addWindowState(win, id)
     return windowState
 end
 
--- Update the direction and directionCounter
-local function updateDirection(win, id, direction, mod)
+-- Update the direction and directionCounter (or complement)
+local function updateDirection(win, id, direction, mod, complement)
+    local directionProp = complement and 'complement' or 'direction'
+    local counterProp = directionProp .. 'Counter'
     local windowState = wm.windows[id]
 
-    if windowState.direction == direction then
-        windowState.directionCounter = (windowState.directionCounter + 1) % mod
+    -- Add a maxmized size for the complement direction
+    if complement then
+        mod = mod + 1
+    end
+
+    if windowState[directionProp] == direction then
+        windowState[counterProp] = (windowState[counterProp] + 1) % mod
     else
-        if windowState.direction == directions.NONE then
+        if not complement and windowState[directionProp] == directions.NONE then
             windowState.restore = win:frame()
         end
 
-        windowState.direction = direction
-        windowState.directionCounter = 0
+        windowState[directionProp] = direction
+        windowState[counterProp] = 0
     end
 end
 
 local function shouldIgnoreWin(win)
     return not win or not win:isStandard()
-end
-
--- Get the new size multiplier of a window
-local function getNewSize(win, direction, sizes)
-    if shouldIgnoreWin(win) then
-        return nil
-    end
-
-    local id = win:id()
-    local windowState = wm.windows[id]
-
-    if not windowState then
-        windowState = addWindowState(win, id)
-    end
-
-    updateDirection(win, id, direction, #sizes)
-
-    return sizes[windowState.directionCounter + 1]
 end
 
 -- Snap positioning functions
@@ -118,6 +114,20 @@ local function snapRight(f, newSize)
     f.w = f.w * newSize
 end
 
+-- Check if a direction pair is a valid direction + complement
+local function canComplement(direction, complement)
+    return invalidComplements[direction] and invalidComplements[complement] and
+        invalidComplements[direction] ~= complement and direction ~= complement
+end
+
+-- Reset a chord
+local function resetChord(windowState)
+    windowState.direction = directions.MANAGED
+    windowState.directionCounter = 0
+    windowState.complement = directions.NONE
+    windowState.complementCounter = 0
+end
+
 local snapDirections = {
     [directions.MAX] = snapMax,
     [directions.UP] = snapUp,
@@ -127,21 +137,39 @@ local snapDirections = {
 }
 
 function wm:snap(direction, sizes)
-    sizes = sizes or self.sizes
-    local win = hs.window.focusedWindow()
-    local newSize = getNewSize(win, direction, sizes)
-
-    if not newSize then
-        return false
-    end
-
-    local frame = win:screen():frame()
-
     if not snapDirections[direction] then
         return
     end
 
-    snapDirections[direction](frame, newSize)
+    sizes = sizes or self.sizes
+    local win = hs.window.focusedWindow()
+
+    if shouldIgnoreWin(win) then
+        return
+    end
+
+    local id = win:id()
+    local windowState = self.windows[id]
+
+    if not windowState then
+        windowState = addWindowState(win, id)
+    elseif not self.chord then
+        resetChord(windowState)
+    end
+
+    self.chord = true
+
+    local isComplement = canComplement(windowState.direction, direction)
+
+    updateDirection(win, id, direction, #sizes, isComplement)
+
+    local frame = win:screen():frame()
+
+    snapDirections[windowState.direction](frame, sizes[windowState.directionCounter + 1])
+
+    if invalidComplements[windowState.complement] then
+        snapDirections[windowState.complement](frame, sizes[windowState.complementCounter + 1] or 1)
+    end
 
     win:setFrame(frame)
 end
@@ -161,7 +189,7 @@ function wm:center()
         windowState = addWindowState(win, id)
     end
 
-    updateDirection(win, id, directions.MOVED, 1)
+    updateDirection(win, id, directions.MANAGED, 1)
 
     local wf = win:frame()
     local f = win:screen():frame()
