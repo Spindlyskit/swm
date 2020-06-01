@@ -25,7 +25,7 @@ hyperListener = hs.hotkey.bind({ 'shift' }, 'F18', enterHyperMode, exitHyperMode
 -- Helper function
 function toggleApp(id)
     local currentBundle = hs.application.frontmostApplication():bundleID()
-    if currentBundle == id then
+    if currentBundle == id and hs.window.focusedWindow() ~= nil then
         hs.eventtap.keyStroke({ 'cmd' }, 'h')
         return
     end
