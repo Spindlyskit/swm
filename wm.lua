@@ -88,94 +88,59 @@ local function getNewSize(win, direction, sizes)
     return sizes[windowState.directionCounter + 1]
 end
 
--- Update a window's frame
-function wm:updateWin(win, update)
-    local max = win:screen():frame()
-
-    update(max)
-
-    win:setFrame(max)
+-- Snap positioning functions
+local function snapMax(f, newSize)
+    local gapUnit = 1/2 * (1 - newSize)
+    f.x = f.x + f.w * gapUnit
+    f.y = f.y + f.h * gapUnit
+    f.w = f.w * newSize
+    f.h = f.h * newSize
 end
 
--- Maximize a window (cycle through maximizedSizes)
-function wm:maximize()
+local function snapUp(f, newSize)
+    f.h = newSize * f.h
+end
+
+local function snapDown(f, newSize)
+    f.y = f.y + f.h * (1 - newSize)
+    f.h = newSize * f.h
+end
+
+local function snapLeft(f, newSize)
+    f.w = f.w * newSize
+end
+
+local function snapRight(f, newSize)
+    f.x = f.x + f.w * (1 - newSize)
+    f.w = f.w * newSize
+end
+
+local snapDirections = {
+    [directions.MAX] = snapMax,
+    [directions.UP] = snapUp,
+    [directions.DOWN] = snapDown,
+    [directions.LEFT] = snapLeft,
+    [directions.RIGHT] = snapRight,
+}
+
+function wm:snap(direction, sizes)
+    sizes = sizes or self.sizes
     local win = hs.window.focusedWindow()
-    local newSize = getNewSize(win, directions.MAX, self.maximizedSizes)
+    local newSize = getNewSize(win, direction, sizes)
 
     if not newSize then
         return false
     end
 
-    if newSize == 1 then
-        self:updateWin(win, function() end)
+    local frame = win:screen():frame()
+
+    if not snapDirections[direction] then
         return
     end
 
-    local gapUnit = 1/2 * (1 - newSize)
-    self:updateWin(win, function(f)
-        f.x = f.x + f.w * gapUnit
-        f.y = f.y + f.h * gapUnit
-        f.w = f.w * newSize
-        f.h = f.h * newSize
-    end)
-end
+    snapDirections[direction](frame, newSize)
 
--- Snap a window to the top of the screen
-function wm:up()
-    local win = hs.window.focusedWindow()
-    local newSize = getNewSize(win, directions.UP, self.sizes)
-
-    if not newSize then
-        return false
-    end
-
-    self:updateWin(win, function(f)
-        f.h = newSize * f.h
-    end)
-end
-
--- Snap a window to the bottom of the screen
-function wm:down()
-    local win = hs.window.focusedWindow()
-    local newSize = getNewSize(win, directions.DOWN, self.sizes)
-
-    if not newSize then
-        return false
-    end
-
-    self:updateWin(win, function(f)
-        f.y = f.y + f.h * (1 - newSize)
-        f.h = newSize * f.h
-    end)
-end
-
--- Snap a window to the left of the screen
-function wm:left()
-    local win = hs.window.focusedWindow()
-    local newSize = getNewSize(win, directions.LEFT, self.sizes)
-
-    if not newSize then
-        return false
-    end
-
-    self:updateWin(win, function(f)
-        f.w = f.w * newSize
-    end)
-end
-
--- Snap a window to the right of the screen
-function wm:right()
-    local win = hs.window.focusedWindow()
-    local newSize = getNewSize(win, directions.RIGHT, self.sizes)
-
-    if not newSize then
-        return false
-    end
-
-    self:updateWin(win, function(f)
-        f.x = f.x + f.w * (1 - newSize)
-        f.w = f.w * newSize
-    end)
+    win:setFrame(frame)
 end
 
 -- Put a window in the center of the screen
@@ -196,13 +161,14 @@ function wm:center()
     updateDirection(win, id, directions.MOVED, 1)
 
     local wf = win:frame()
+    local f = win:screen():frame()
 
-    wm:updateWin(win, function(f)
-        f.x = f.x + f.w / 2 - wf.w / 2
-        f.y = f.y + f.h / 2 - wf.h / 2
-        f.w = wf.w
-        f.h = wf.h
-    end)
+    f.x = f.x + f.w / 2 - wf.w / 2
+    f.y = f.y + f.h / 2 - wf.h / 2
+    f.w = wf.w
+    f.h = wf.h
+
+    win:setFrame(f)
 end
 
 -- Restore a window to its inital position
@@ -222,10 +188,19 @@ function wm:restore()
 
     updateDirection(win, id, directions.NONE, 1)
 
-    self:updateWin(win, function(f)
-        f.x = windowState.restore.x
-        f.y = windowState.restore.y
-        f.w = windowState.restore.w
-        f.h = windowState.restore.h
-    end)
+    local f = win:screen():frame()
+
+    f.x = windowState.restore.x
+    f.y = windowState.restore.y
+    f.w = windowState.restore.w
+    f.h = windowState.restore.h
+
+    win:setFrame(f)
 end
+
+-- Shortcuts
+function wm:maximize() wm:snap(directions.MAX, self.maximizedSizes) end
+function wm:up() wm:snap(directions.UP, self.sizes) end
+function wm:down() wm:snap(directions.DOWN, self.sizes) end
+function wm:left() wm:snap(directions.LEFT, self.sizes) end
+function wm:right() wm:snap(directions.RIGHT, self.sizes) end
