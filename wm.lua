@@ -191,14 +191,7 @@ function wm:restore()
 
     updateDirection(win, id, directions.NONE, 1)
 
-    local f = win:screen():frame()
-
-    f.x = windowState.restore.x
-    f.y = windowState.restore.y
-    f.w = windowState.restore.w
-    f.h = windowState.restore.h
-
-    win:setFrame(f)
+    win:setFrame(windowState.restore)
 end
 
 -- Shortcuts
